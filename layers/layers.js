@@ -95,46 +95,46 @@ var lyr_LOTs_6 = new ol.layer.Vector({
                 interactive: true,
                 title: '<img src="styles/legend/LOTs_6.png" /> LOTs'
             });
-var format_Info_7 = new ol.format.GeoJSON();
-var features_Info_7 = format_Info_7.readFeatures(json_Info_7, 
+var format_TravauxEP_7 = new ol.format.GeoJSON();
+var features_TravauxEP_7 = format_TravauxEP_7.readFeatures(json_TravauxEP_7, 
             {dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'});
-var jsonSource_Info_7 = new ol.source.Vector({
+var jsonSource_TravauxEP_7 = new ol.source.Vector({
     attributions: ' ',
 });
-jsonSource_Info_7.addFeatures(features_Info_7);
-var lyr_Info_7 = new ol.layer.Vector({
+jsonSource_TravauxEP_7.addFeatures(features_TravauxEP_7);
+var lyr_TravauxEP_7 = new ol.layer.Vector({
                 declutter: true,
-                source:jsonSource_Info_7, 
-                style: style_Info_7,
+                source:jsonSource_TravauxEP_7, 
+                style: style_TravauxEP_7,
                 interactive: true,
-                title: '<img src="styles/legend/Info_7.png" /> Info'
+                title: '<img src="styles/legend/TravauxEP_7.png" /> Travaux EP'
             });
-var format_TravauxEP_8 = new ol.format.GeoJSON();
-var features_TravauxEP_8 = format_TravauxEP_8.readFeatures(json_TravauxEP_8, 
+var format_Info_8 = new ol.format.GeoJSON();
+var features_Info_8 = format_Info_8.readFeatures(json_Info_8, 
             {dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857'});
-var jsonSource_TravauxEP_8 = new ol.source.Vector({
+var jsonSource_Info_8 = new ol.source.Vector({
     attributions: ' ',
 });
-jsonSource_TravauxEP_8.addFeatures(features_TravauxEP_8);
-var lyr_TravauxEP_8 = new ol.layer.Vector({
+jsonSource_Info_8.addFeatures(features_Info_8);
+var lyr_Info_8 = new ol.layer.Vector({
                 declutter: true,
-                source:jsonSource_TravauxEP_8, 
-                style: style_TravauxEP_8,
+                source:jsonSource_Info_8, 
+                style: style_Info_8,
                 interactive: true,
-                title: '<img src="styles/legend/TravauxEP_8.png" /> Travaux EP'
+                title: '<img src="styles/legend/Info_8.png" /> Info'
             });
 
-lyr_GoogleSatellite_0.setVisible(true);lyr_OpenStreetMap_1.setVisible(true);lyr_GoogleMap_2.setVisible(true);lyr_Parcelle_Bussy_St_Georges_3.setVisible(true);lyr_Parcelle_SERRIS_4.setVisible(true);lyr_Parcelle_Magny_Le_Hongre_5.setVisible(true);lyr_LOTs_6.setVisible(true);lyr_Info_7.setVisible(true);lyr_TravauxEP_8.setVisible(true);
-var layersList = [lyr_GoogleSatellite_0,lyr_OpenStreetMap_1,lyr_GoogleMap_2,lyr_Parcelle_Bussy_St_Georges_3,lyr_Parcelle_SERRIS_4,lyr_Parcelle_Magny_Le_Hongre_5,lyr_LOTs_6,lyr_Info_7,lyr_TravauxEP_8];
+lyr_GoogleSatellite_0.setVisible(true);lyr_OpenStreetMap_1.setVisible(true);lyr_GoogleMap_2.setVisible(true);lyr_Parcelle_Bussy_St_Georges_3.setVisible(true);lyr_Parcelle_SERRIS_4.setVisible(true);lyr_Parcelle_Magny_Le_Hongre_5.setVisible(true);lyr_LOTs_6.setVisible(true);lyr_TravauxEP_7.setVisible(true);lyr_Info_8.setVisible(true);
+var layersList = [lyr_GoogleSatellite_0,lyr_OpenStreetMap_1,lyr_GoogleMap_2,lyr_Parcelle_Bussy_St_Georges_3,lyr_Parcelle_SERRIS_4,lyr_Parcelle_Magny_Le_Hongre_5,lyr_LOTs_6,lyr_TravauxEP_7,lyr_Info_8];
 lyr_LOTs_6.set('fieldAliases', {'LOT': 'LOT', 'Start': 'Start', 'End': 'End', 'Nature': 'Nature', 'Programme': 'Programme', 'Preneur': 'Preneur', 'Remarques': 'Remarques', 'ZAC': 'ZAC', });
-lyr_Info_7.set('fieldAliases', {'Info': 'Info', });
-lyr_TravauxEP_8.set('fieldAliases', {'Statut': 'Statut', 'Nature': 'Nature', 'Start': 'Start', 'End': 'End', 'Entreprise': 'Entreprise', 'MOA': 'MOA', 'Remarques': 'Remarques', });
+lyr_TravauxEP_7.set('fieldAliases', {'Statut': 'Statut', 'Nature': 'Nature', 'Start': 'Start', 'End': 'End', 'Entreprise': 'Entreprise', 'MOA': 'MOA', 'Remarques': 'Remarques', });
+lyr_Info_8.set('fieldAliases', {'Info': 'Info', });
 lyr_LOTs_6.set('fieldImages', {'LOT': 'TextEdit', 'Start': 'TextEdit', 'End': 'TextEdit', 'Nature': 'TextEdit', 'Programme': 'TextEdit', 'Preneur': 'TextEdit', 'Remarques': 'TextEdit', 'ZAC': 'TextEdit', });
-lyr_Info_7.set('fieldImages', {'Info': 'TextEdit', });
-lyr_TravauxEP_8.set('fieldImages', {'Statut': 'ValueMap', 'Nature': 'ValueMap', 'Start': 'TextEdit', 'End': 'TextEdit', 'Entreprise': 'TextEdit', 'MOA': 'TextEdit', 'Remarques': 'Range', });
+lyr_TravauxEP_7.set('fieldImages', {'Statut': 'TextEdit', 'Nature': 'TextEdit', 'Start': 'TextEdit', 'End': 'TextEdit', 'Entreprise': 'TextEdit', 'MOA': 'TextEdit', 'Remarques': 'TextEdit', });
+lyr_Info_8.set('fieldImages', {'Info': 'TextEdit', });
 lyr_LOTs_6.set('fieldLabels', {'LOT': 'inline label', 'Start': 'inline label', 'End': 'inline label', 'Nature': 'inline label', 'Programme': 'inline label', 'Preneur': 'inline label', 'Remarques': 'inline label', 'ZAC': 'inline label', });
-lyr_Info_7.set('fieldLabels', {'Info': 'no label', });
-lyr_TravauxEP_8.set('fieldLabels', {'Statut': 'inline label', 'Nature': 'inline label', 'Start': 'inline label', 'End': 'inline label', 'Entreprise': 'inline label', 'MOA': 'inline label', 'Remarques': 'inline label', });
-lyr_TravauxEP_8.on('precompose', function(evt) {
+lyr_TravauxEP_7.set('fieldLabels', {'Statut': 'inline label', 'Nature': 'inline label', 'Start': 'inline label', 'End': 'inline label', 'Entreprise': 'inline label', 'MOA': 'inline label', 'Remarques': 'inline label', });
+lyr_Info_8.set('fieldLabels', {'Info': 'no label', });
+lyr_Info_8.on('precompose', function(evt) {
     evt.context.globalCompositeOperation = 'normal';
 });
