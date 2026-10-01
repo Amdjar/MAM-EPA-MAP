@@ -1,154 +1,803 @@
-<!doctype html>
-<html lang="en">
-    <head>
-        <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
-        <meta name="mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-capable" content="yes">
-        <link rel="stylesheet" href="./resources/ol.css">
-        <link rel="stylesheet" href="resources/fontawesome-all.min.css">
-        <link rel="stylesheet" href="./resources/ol-layerswitcher.css">
-        <link rel="stylesheet" href="./resources/qgis2web.css">
-        <style>
-        .ol-geocoder.gcd-gl-container {
-            top: 135px!important;
-            left: .5em!important;
-            width: 2.1em!important;
-            height: 2.1em!important;
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SigoW - Cartographie ZAC & Tâches</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/shpjs/4.0.4/shp.min.js"></script>
+    
+    <style>
+        #map { height: 100%; width: 100%; z-index: 1; }
+        
+        .modal-overlay {
+            display: none; 
+            position: fixed;
+            z-index: 3000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(4px);
         }
-        .ol-geocoder .gcd-gl-container{
-            width: 2.1em!important;
-            height: 2.1em!important;
-        }
-        .ol-geocoder .gcd-gl-control{
-            width: 2.1em!important;
-        }
-        .ol-geocoder .gcd-gl-expanded {
-            width: 15.625em!important;
-            height: 2.1875em;
-        }
-        .ol-touch .ol-geocoder.gcd-gl-container{
-            top: 180px!important;
-        }
-        .ol-geocoder .gcd-gl-btn {
-            width: 1.375em!important;
-            height: 1.375em!important;
-            top: .225em!important;
-            background-image: none!important;
-        }
-        </style>
-<style>
-.search-layer {
-  top: 170px;
-  left: .5em;
-}
-.ol-touch .search-layer {
-  top: 230px;
-}
-</style>
-        <style>
-        html, body {
-            background-color: #ffffff;
-        }
-        .ol-control button {
-            background-color: #f8f8f8 !important;
-            color: #000000 !important;
-            border-radius: 0px !important;
-        }
-        .ol-zoom, .geolocate, .gcd-gl-control .ol-control {
-            background-color: rgba(255,255,255,.4) !important;
-            padding: 3px !important;
-        }
-        .ol-scale-line {
-            background: none !important;
-        }
-        .ol-scale-line-inner {
-            border: 2px solid #f8f8f8 !important;
-            border-top: none !important;
-            background: rgba(255, 255, 255, 0.5) !important;
-            color: black !important;
-        }
-        </style>
 
-        <style>
-        .geolocate {
-            top: 65px;
-            left: .5em;
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .leaflet-tooltip-custom {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #6366f1;
+            border-radius: 3px;
+            padding: 1px 4px;
+            font-size: 9px;
+            font-weight: 600;
+            color: #1e1b4b;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            white-space: nowrap;
         }
-        .ol-touch .geolocate {
-            top: 80px;
+        
+        .hide-tooltips .leaflet-tooltip-custom {
+            display: none !important;
         }
-        </style>
-        <link href="resources/ol-geocoder.min.css" rel="stylesheet">
-<style>
-.tooltip {
-  position: relative;
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 4px;
-  color: white;
-  padding: 4px 8px;
-  opacity: 0.7;
-  white-space: nowrap;
-}
-.tooltip-measure {
-  opacity: 1;
-  font-weight: bold;
-}
-.tooltip-static {
-  background-color: #ffcc33;
-  color: black;
-  border: 1px solid white;
-}
-.tooltip-measure:before,
-.tooltip-static:before {
-  border-top: 6px solid rgba(0, 0, 0, 0.5);
-  border-right: 6px solid transparent;
-  border-left: 6px solid transparent;
-  content: "";
-  position: absolute;
-  bottom: -6px;
-  margin-left: -7px;
-  left: 50%;
-}
-.tooltip-static:before {
-  border-top-color: #ffcc33;
-}
-.measure-control {
-  top: 100px;
-  left: .5em;
-}
-.ol-touch .measure-control {
-  top: 130px;
-}
-</style>
-        <style>
-        html, body, #map {
-            width: 100%;
-            height: 100%;
-            padding: 0;
-            margin: 0;
+
+        .zac-group-content { display: block; }
+        .zac-group-content.hidden { display: none; }
+        .rotate-icon { transition: transform 0.2s; }
+        .collapsed .rotate-icon { transform: rotate(-90deg); }
+
+        .leaflet-control-layers {
+            border-radius: 12px !important;
+            border: none !important;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+            padding: 8px !important;
         }
-        </style>
-        <title></title>
-    </head>
-    <body>
-        <div id="map">
-            <div id="popup" class="ol-popup">
-                <a href="#" id="popup-closer" class="ol-popup-closer"></a>
-                <div id="popup-content"></div>
+        
+        /* Styles statuts tâches */
+        .status-select { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 0.25rem center; background-size: 1em; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans overflow-hidden">
+
+    <!-- Modal Paramètres Couche Importée -->
+    <div id="layerSettingsModal" class="modal-overlay items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-slate-200">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">Paramètres de la couche</h3>
+                    <p id="settingsLayerTitle" class="text-sm text-indigo-600 font-medium"></p>
+                </div>
+                <button onclick="closeModal('layerSettingsModal')" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="space-y-6">
+                <div class="bg-slate-50 p-4 rounded-xl space-y-4">
+                    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest">Apparence visuelle</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1 uppercase font-bold">Couleur de trait</label>
+                            <input type="color" id="styleColor" class="w-full h-8 cursor-pointer rounded border-none bg-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1 uppercase font-bold">Épaisseur</label>
+                            <input type="range" id="styleWeight" min="0.5" max="8" step="0.5" class="w-full h-8 accent-indigo-600">
+                        </div>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-widest">Affichage de texte</h4>
+                    <select id="labelAttributeSelect" class="w-full text-sm px-4 py-2 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-8">
+                <button onclick="closeModal('layerSettingsModal')" class="flex-1 px-4 py-2 text-slate-600 bg-slate-100 rounded-xl font-medium">Annuler</button>
+                <button onclick="applyLayerSettings()" class="flex-1 px-4 py-2 text-white bg-indigo-600 rounded-xl font-bold shadow-lg shadow-indigo-200">Sauvegarder</button>
             </div>
         </div>
-        <script src="resources/qgis2web_expressions.js"></script>
-        <script src="resources/polyfills.js"></script>
-        <script src="./resources/functions.js"></script>
-        <script src="./resources/ol.js"></script>
-        <script src="./resources/ol-layerswitcher.js"></script>
-        <script src="resources/ol-geocoder.js"></script>
-        <script src="layers/LOTs_6.js"></script><script src="layers/TravauxEP_7.js"></script><script src="layers/Info_8.js"></script>
-        <script src="styles/LOTs_6_style.js"></script><script src="styles/TravauxEP_7_style.js"></script><script src="styles/Info_8_style.js"></script>
-        <script src="./layers/layers.js" type="text/javascript"></script> 
-        <script src="./resources/Autolinker.min.js"></script>
-        <script src="./resources/qgis2web.js"></script>
-    </body>
+    </div>
+
+    <!-- Modal Attributs Dessin (Tâches) -->
+    <div id="inputModal" class="modal-overlay items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 id="modalTitle" class="text-lg font-bold text-slate-800 mb-4">Détails de la tâche</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">ZAC associée</label>
+                    <select id="modalZac" class="w-full text-sm px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="" disabled selected>Sélectionner...</option>
+                        <option value="Couternois">Couternois</option>
+                        <option value="Studio et Congrès">Studio et Congrès</option>
+                        <option value="Courtalin">Courtalin</option>
+                        <option value="Gassets">Gassets</option>
+                        <option value="Hors ZAC">Hors ZAC</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Statut</label>
+                    <select id="modalStatus" class="w-full text-sm px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-medium">
+                        <option value="A_TRAITER" class="text-rose-600">🔴 À traiter</option>
+                        <option value="EN_COURS" class="text-amber-500">🟠 En cours</option>
+                        <option value="FAIT" class="text-emerald-600">🟢 Fait</option>
+                        <option value="POUR_INFO" class="text-blue-600">🔵 Pour info</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Tâche / Commentaire</label>
+                    <textarea id="modalNote" class="w-full text-sm px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" rows="3" placeholder="Décrivez la tâche à réaliser..."></textarea>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button onclick="cancelCreation()" class="flex-1 px-4 py-2 text-slate-600 bg-slate-100 rounded-xl font-medium">Annuler</button>
+                <button onclick="confirmCreation()" class="flex-1 px-4 py-2 text-white bg-indigo-600 rounded-xl font-bold shadow-lg shadow-indigo-200">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Import -->
+    <div id="layerImportModal" class="modal-overlay items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 class="text-lg font-bold text-slate-800 mb-4">Ajouter une couche SIG</h3>
+            <div class="space-y-4">
+                <input type="text" id="importLayerName" class="w-full text-sm px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl" placeholder="Nom (ex: ZAC, Cadastre...)">
+                <input type="file" id="importFile" accept=".json,.geojson,.zip" class="w-full text-sm border p-2 rounded-xl bg-slate-50 cursor-pointer">
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button onclick="closeModal('layerImportModal')" class="flex-1 px-4 py-2 text-slate-600 bg-slate-100 rounded-xl">Annuler</button>
+                <button id="btnImportAction" onclick="processImport()" class="flex-1 px-4 py-2 text-white bg-emerald-600 rounded-xl font-bold">Charger et Mémoriser</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="shrink-0 bg-indigo-900 text-white px-6 py-4 flex justify-between items-center shadow-lg relative z-[1001]">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-bold tracking-tight">SigoW <span class="text-indigo-300 font-light text-sm ml-2">| Gestion ZAC & Tâches</span></h1>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="openModal('layerImportModal')" class="bg-emerald-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-500 transition-all flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"></path></svg>
+                Importer couche
+            </button>
+            <button onclick="clearAllStorage()" class="bg-red-900/40 px-3 py-2 rounded-lg text-xs hover:bg-red-800 transition-colors">Réinitialiser</button>
+        </div>
+    </nav>
+
+    <div class="flex flex-col lg:flex-row flex-grow overflow-hidden h-[calc(100vh-68px)]">
+        <main class="flex-grow relative order-2 lg:order-1 h-full">
+            <div id="map" class="h-full w-full"></div>
+        </main>
+
+        <aside id="sidebar" class="w-full bg-white border-l border-slate-200 shadow-xl z-[1000] p-4 order-1 lg:order-2 flex flex-col relative h-full shrink-0" style="width: 420px; min-width: 320px; max-width: 60vw;">
+            <!-- Poignée pour redimensionner la largeur du panneau -->
+            <div id="sidebar-resizer" class="hidden lg:block absolute left-0 top-0 bottom-0 w-1.5 hover:bg-indigo-400 cursor-col-resize z-50 transition-colors -ml-[1px]"></div>
+
+            <!-- Section 1 : Couches -->
+            <div id="section-layers-container" class="flex flex-col shrink-0 transition-all duration-300 overflow-hidden" style="flex-basis: 35%; min-height: 40px;">
+                <div class="flex justify-between items-center mb-2 cursor-pointer group shrink-0" onclick="toggleSidebarSection('layers-content', this)">
+                    <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-indigo-500 transition-colors">Couches de données</h2>
+                    <svg class="w-4 h-4 text-slate-400 transition-transform rotate-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div id="layers-content" class="flex-grow overflow-y-auto custom-scrollbar pr-2 block">
+                    <div id="externalLayersList" class="space-y-3">
+                        <p class="text-xs text-slate-400 italic text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">Aucune couche ajoutée.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Poignée pour redimensionner la hauteur entre les 2 sections -->
+            <div id="horizontal-resizer" class="h-1.5 bg-slate-100 hover:bg-indigo-400 cursor-row-resize my-3 shrink-0 rounded transition-colors hidden lg:block" title="Ajuster la hauteur"></div>
+            <div class="h-px bg-slate-100 my-3 lg:hidden shrink-0"></div>
+
+            <!-- Section 2 : Tâches -->
+            <div id="section-tasks-container" class="flex-grow flex flex-col overflow-hidden transition-all duration-300">
+                <div class="flex justify-between items-center mb-2 shrink-0 cursor-pointer group" onclick="toggleSidebarSection('tasks-content', this)">
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-indigo-500 transition-colors">Liste des tâches</h2>
+                        <span id="objCount" class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
+                    </div>
+                    <svg class="w-4 h-4 text-slate-400 transition-transform rotate-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                
+                <div id="tasks-content" class="flex-grow overflow-y-auto custom-scrollbar pr-2 block">
+                    <div id="featureList" class="space-y-4 pb-4"></div>
+                </div>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-slate-100 shrink-0">
+                <button onclick="exportGeoJSON()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl shadow-lg flex justify-center items-center gap-2 transition-transform hover:scale-[1.02]">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    Exporter le travail
+                </button>
+            </div>
+        </aside>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
+    <script>
+        // Configuration statuts de tâches
+        const STATUS_CONFIG = {
+            "A_TRAITER": { label: "À traiter", color: "border-rose-400", bg: "bg-rose-50", text: "text-rose-700", icon: "🔴" },
+            "EN_COURS":  { label: "En cours", color: "border-amber-400", bg: "bg-amber-50", text: "text-amber-700", icon: "🟠" },
+            "FAIT":      { label: "Fait", color: "border-emerald-400", bg: "bg-emerald-50", text: "text-emerald-700", icon: "🟢" },
+            "POUR_INFO": { label: "Pour info", color: "border-blue-400", bg: "bg-blue-50", text: "text-blue-700", icon: "🔵" }
+        };
+
+        // --- CONFIGURATION DES FONDS DE CARTE ---
+        const baseLayers = {
+            "Photo Aérienne (IGN)": L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', { attribution: 'IGN' }),
+            "Photo Hybride (Google)": L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: 'Google' }),
+            "Photo Satellite (Esri)": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' }),
+            "Plan IGN": L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', { attribution: 'IGN' }),
+            "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM' }),
+            "Plan Clair (Light)": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: 'CartoDB' }),
+            "Plan Sombre (Dark)": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: 'CartoDB' }),
+            "Topographie": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: 'OpenTopoMap' })
+        };
+
+        // --- INITIALISATION CARTE ---
+        const valDEuropeCoords = [48.868, 2.784];
+        const map = L.map('map', { 
+            zoomControl: false,
+            layers: [baseLayers["Photo Aérienne (IGN)"]] 
+        }).setView(valDEuropeCoords, 14);
+
+        L.control.layers(baseLayers, null, { position: 'topright', collapsed: true }).addTo(map);
+        L.control.zoom({ position: 'topleft' }).addTo(map);
+
+        const featureData = new Map(); 
+        const externalLayers = new Map(); 
+        let currentTempLayer = null, currentTempType = null, activeLayerIdForSettings = null;
+        let editingFeatureId = null; // ID de l'élément en cours de modification
+
+        const ZOOM_THRESHOLD = 15;
+        map.on('zoomend', updateTooltipVisibility);
+
+        function updateTooltipVisibility() {
+            const zoom = map.getZoom();
+            const container = map.getContainer();
+            if (zoom >= ZOOM_THRESHOLD) container.classList.remove('hide-tooltips');
+            else container.classList.add('hide-tooltips');
+        }
+
+        const drawnItems = new L.FeatureGroup().addTo(map);
+        const drawControl = new L.Control.Draw({
+            draw: { polygon: true, polyline: true, rectangle: true, marker: true, circle: false, circlemarker: false },
+            edit: { featureGroup: drawnItems }
+        });
+        map.addControl(drawControl);
+
+        // --- PERSISTANCE ET INTERFACE ---
+        window.onload = function() {
+            closeModal('layerImportModal');
+            loadFromStorage();
+            updateTooltipVisibility();
+            initUIResizers();
+            
+            // Assurer que la carte se redimensionne correctement lorsque l'interface ou la fenêtre bouge
+            new ResizeObserver(() => { map.invalidateSize(); }).observe(document.getElementById('map'));
+        };
+
+        function initUIResizers() {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarResizer = document.getElementById('sidebar-resizer');
+            const layersContainer = document.getElementById('section-layers-container');
+            const horizontalResizer = document.getElementById('horizontal-resizer');
+            
+            let isResizingSidebar = false;
+            let isResizingVertical = false;
+
+            sidebarResizer.addEventListener('mousedown', (e) => {
+                isResizingSidebar = true;
+                document.body.style.cursor = 'col-resize';
+                e.preventDefault();
+            });
+
+            horizontalResizer.addEventListener('mousedown', (e) => {
+                isResizingVertical = true;
+                document.body.style.cursor = 'row-resize';
+                e.preventDefault();
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (isResizingSidebar) {
+                    const newWidth = window.innerWidth - e.clientX;
+                    if (newWidth > 280 && newWidth < window.innerWidth * 0.7) {
+                        sidebar.style.width = `${newWidth}px`;
+                    }
+                }
+                
+                if (isResizingVertical) {
+                    const sidebarRect = sidebar.getBoundingClientRect();
+                    const newHeight = e.clientY - sidebarRect.top; 
+                    if (newHeight > 40 && newHeight < sidebarRect.height - 100) {
+                        layersContainer.style.flexBasis = `${newHeight}px`;
+                    }
+                }
+            });
+
+            window.addEventListener('mouseup', () => {
+                if(isResizingSidebar || isResizingVertical) {
+                    isResizingSidebar = false;
+                    isResizingVertical = false;
+                    document.body.style.cursor = 'default';
+                }
+            });
+        }
+
+        function toggleSidebarSection(contentId, headerEl) {
+            const content = document.getElementById(contentId);
+            headerEl.classList.toggle('collapsed');
+            content.classList.toggle('hidden');
+            
+            if (contentId === 'layers-content') {
+                const resizer = document.getElementById('horizontal-resizer');
+                const container = document.getElementById('section-layers-container');
+                if (content.classList.contains('hidden')) {
+                    container.style.flexBasis = 'auto'; // Réduit la taille au minmum
+                    resizer.style.display = 'none'; // Cache la barre horizontale
+                } else {
+                    container.style.flexBasis = '35%'; // Restaure la taille par défaut
+                    resizer.style.display = '';
+                }
+            }
+        }
+
+        function formatPopupContent(data) {
+            const statusConfig = STATUS_CONFIG[data.status || 'A_TRAITER'];
+            return `
+                <div class="text-sm">
+                    <b class="text-indigo-900">${data.zac}</b><br>
+                    <span class="inline-block mt-1 mb-2 px-2 py-0.5 text-[10px] font-bold rounded ${statusConfig.bg} ${statusConfig.text}">
+                        ${statusConfig.icon} ${statusConfig.label}
+                    </span><br>
+                    <div class="max-h-32 overflow-y-auto whitespace-pre-wrap text-xs text-slate-600">${data.note || 'Aucune description'}</div>
+                </div>
+            `;
+        }
+
+        function loadFromStorage() {
+            const savedDrawings = localStorage.getItem('sigow_drawings');
+            if (savedDrawings) {
+                JSON.parse(savedDrawings).forEach(d => {
+                    const layer = L.GeoJSON.geometryToLayer(d.geometry);
+                    if (layer) {
+                        const id = L.stamp(layer);
+                        // Assurer la rétrocompatibilité (si status n'existe pas, on met A_TRAITER)
+                        if (!d.properties.status) d.properties.status = 'A_TRAITER';
+                        
+                        featureData.set(id, d.properties);
+                        drawnItems.addLayer(layer);
+                        layer.bindPopup(formatPopupContent(d.properties));
+                    }
+                });
+                updateFeatureList();
+            }
+
+            const savedLayers = localStorage.getItem('sigow_external_layers');
+            if (savedLayers) {
+                JSON.parse(savedLayers).forEach(l => {
+                    addLayerToMap(l.geojson, l.name, l.id, l.visible, l.labelAttr, l.style || { color: '#4f46e5', weight: 2, fillOpacity: 0.15 });
+                });
+            }
+        }
+
+        function saveToStorage() {
+            const drawings = [];
+            drawnItems.eachLayer(l => drawings.push({ geometry: l.toGeoJSON().geometry, properties: featureData.get(L.stamp(l)) }));
+            localStorage.setItem('sigow_drawings', JSON.stringify(drawings));
+
+            const layers = [];
+            externalLayers.forEach(data => {
+                layers.push({ id: data.id, name: data.name, geojson: data.geojson, visible: data.visible, labelAttr: data.labelAttr, style: data.style });
+            });
+            try { localStorage.setItem('sigow_external_layers', JSON.stringify(layers)); } catch (e) {}
+        }
+
+        // --- GESTION MODALES ---
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { 
+            document.getElementById(id).style.display = 'none'; 
+            if (id === 'inputModal') editingFeatureId = null; 
+        }
+
+        // --- IMPORTATION ---
+        async function processImport() {
+            const fileInput = document.getElementById('importFile');
+            if (!fileInput.files.length) return alert("Veuillez choisir un fichier.");
+            const file = fileInput.files[0];
+            const name = document.getElementById('importLayerName').value || file.name.split('.')[0];
+            const ext = file.name.split('.').pop().toLowerCase();
+            const btn = document.getElementById('btnImportAction');
+
+            btn.disabled = true; btn.innerText = "Traitement...";
+
+            try {
+                let geojson = (ext === 'zip') ? await shp(await file.arrayBuffer()) : JSON.parse(await file.text());
+                const id = "layer_" + Date.now();
+                addLayerToMap(geojson, name, id, true, null, { color: '#4f46e5', weight: 2, fillOpacity: 0.15 });
+                saveToStorage();
+                closeModal('layerImportModal');
+                document.getElementById('importLayerName').value = "";
+                fileInput.value = "";
+            } catch (e) { alert("Erreur : " + e.message); } finally {
+                btn.disabled = false; btn.innerText = "Charger et Mémoriser";
+            }
+        }
+
+        function addLayerToMap(geojson, name, id, visible, labelAttr, style) {
+            const layerGroup = L.geoJSON(geojson, {
+                style: style,
+                onEachFeature: (f, l) => {
+                    if (f.properties) {
+                        let p = "<div class='text-[10px] max-h-40 overflow-auto border-t mt-1 pt-1 custom-scrollbar'>";
+                        Object.keys(f.properties).forEach(k => p += `<div><b class="text-slate-600">${k}:</b> ${f.properties[k]}</div>`);
+                        l.bindPopup(`<b>Objet SIG</b>` + p + "</div>");
+                    }
+                }
+            });
+
+            if (visible) layerGroup.addTo(map);
+            let keys = [];
+            const sample = geojson.features ? geojson.features[0] : (Array.isArray(geojson) ? geojson[0]?.features?.[0] : null);
+            if (sample && sample.properties) keys = Object.keys(sample.properties);
+
+            externalLayers.set(id, { id, name, layerGroup, geojson, visible, labelAttr, availableKeys: keys, style });
+            if (labelAttr) applyLabelsToLayer(id, labelAttr);
+            updateExternalLayersList();
+        }
+
+        function openSettingsModal(id) {
+            activeLayerIdForSettings = id;
+            const data = externalLayers.get(id);
+            document.getElementById('settingsLayerTitle').innerText = data.name;
+            document.getElementById('styleColor').value = data.style.color;
+            document.getElementById('styleWeight').value = data.style.weight;
+            const select = document.getElementById('labelAttributeSelect');
+            select.innerHTML = '<option value="">-- Aucune étiquette --</option>';
+            data.availableKeys.forEach(k => {
+                select.innerHTML += `<option value="${k}" ${data.labelAttr === k ? 'selected' : ''}>${k}</option>`;
+            });
+            openModal('layerSettingsModal');
+        }
+
+        function applyLayerSettings() {
+            const id = activeLayerIdForSettings;
+            const data = externalLayers.get(id);
+            const newStyle = {
+                color: document.getElementById('styleColor').value,
+                weight: parseFloat(document.getElementById('styleWeight').value),
+                fillOpacity: data.style.fillOpacity
+            };
+            data.style = newStyle;
+            data.layerGroup.setStyle(newStyle);
+            applyLabelsToLayer(id, document.getElementById('labelAttributeSelect').value);
+            saveToStorage();
+            closeModal('layerSettingsModal');
+            updateExternalLayersList();
+        }
+
+        function applyLabelsToLayer(id, attr) {
+            const data = externalLayers.get(id);
+            data.labelAttr = attr;
+            data.layerGroup.eachLayer(l => {
+                l.unbindTooltip();
+                if (attr && l.feature && l.feature.properties[attr]) {
+                    l.bindTooltip(String(l.feature.properties[attr]), { 
+                        permanent: true, 
+                        direction: "center", 
+                        className: "leaflet-tooltip-custom",
+                        sticky: true,
+                        opacity: 0.9
+                    });
+                }
+            });
+        }
+
+        function findZacForGeometry(geometry) {
+            let foundLibZac = null;
+            externalLayers.forEach(layerData => {
+                if (layerData.name.toUpperCase().includes("ZAC") && layerData.geojson) {
+                    const features = layerData.geojson.features || (Array.isArray(layerData.geojson) ? layerData.geojson : []);
+                    features.forEach(f => {
+                        if (foundLibZac) return;
+                        try {
+                            const intersects = turf.booleanIntersects(geometry, f);
+                            if (intersects) foundLibZac = f.properties.lib_zac || f.properties.LIB_ZAC;
+                        } catch(e) {}
+                    });
+                }
+            });
+            return foundLibZac;
+        }
+
+        // Événement après un dessin manuel
+        map.on(L.Draw.Event.CREATED, (e) => {
+            currentTempLayer = e.layer; 
+            currentTempType = e.layerType;
+            editingFeatureId = null; // On est en création
+            
+            document.getElementById('modalTitle').innerText = "Nouvelle tâche / dessin";
+            const geojson = currentTempLayer.toGeoJSON();
+            const detectedLibZac = findZacForGeometry(geojson);
+            const selectZac = document.getElementById('modalZac');
+            selectZac.selectedIndex = 0;
+
+            if (detectedLibZac) {
+                const detectedWords = String(detectedLibZac).toLowerCase().match(/\w+/g) || [];
+                for (let i = 0; i < selectZac.options.length; i++) {
+                    const optionValue = selectZac.options[i].value.toLowerCase();
+                    if (!optionValue) continue;
+                    const optionWords = optionValue.match(/\w+/g) || [];
+                    if (optionWords.some(word => detectedWords.includes(word))) {
+                        selectZac.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+            document.getElementById('modalNote').value = "";
+            document.getElementById('modalStatus').value = "A_TRAITER"; // Statut par défaut
+            openModal('inputModal');
+        });
+
+        // Fonction pour lancer la modification des attributs
+        function editDrawingAttributes(id) {
+            const numericId = Number(id); 
+            const data = featureData.get(numericId);
+            if (!data) return;
+
+            editingFeatureId = numericId;
+            document.getElementById('modalTitle').innerText = "Modifier la tâche";
+            document.getElementById('modalZac').value = data.zac;
+            document.getElementById('modalNote').value = data.note || "";
+            document.getElementById('modalStatus').value = data.status || "A_TRAITER";
+            openModal('inputModal');
+        }
+
+        // Mise à jour rapide du statut depuis la liste
+        function quickUpdateStatus(id, newStatus) {
+            const numericId = Number(id);
+            const data = featureData.get(numericId);
+            if (data) {
+                data.status = newStatus;
+                
+                // Mettre à jour la popup
+                const layer = drawnItems.getLayer(numericId);
+                if (layer) {
+                    layer.setPopupContent(formatPopupContent(data));
+                }
+                
+                saveToStorage();
+                updateFeatureList(); // Re-génère la liste pour appliquer les couleurs
+            }
+        }
+
+        function confirmCreation() {
+            const zac = document.getElementById('modalZac').value || "Hors ZAC";
+            const note = document.getElementById('modalNote').value;
+            const status = document.getElementById('modalStatus').value;
+
+            if (editingFeatureId !== null) {
+                // MODE MODIFICATION
+                const data = featureData.get(editingFeatureId);
+                if (data) {
+                    data.zac = zac;
+                    data.note = note;
+                    data.status = status;
+                }
+                
+                const layer = drawnItems.getLayer(editingFeatureId);
+                if (layer) {
+                    layer.setPopupContent(formatPopupContent(data));
+                }
+            } else {
+                // MODE CRÉATION
+                const id = L.stamp(currentTempLayer);
+                const newData = { 
+                    zac: zac, 
+                    note: note, 
+                    status: status,
+                    type: currentTempType,
+                    timestamp: Date.now()
+                };
+                featureData.set(id, newData);
+                drawnItems.addLayer(currentTempLayer);
+                currentTempLayer.bindPopup(formatPopupContent(newData));
+            }
+            
+            saveToStorage(); 
+            updateFeatureList(); 
+            closeModal('inputModal');
+        }
+
+        function cancelCreation() { closeModal('inputModal'); }
+
+        function toggleVisibility(id) {
+            const data = externalLayers.get(id);
+            if (data.visible) map.removeLayer(data.layerGroup); else map.addLayer(data.layerGroup);
+            data.visible = !data.visible;
+            saveToStorage(); updateExternalLayersList();
+        }
+
+        function removeExternalLayer(id) {
+            if (confirm("Supprimer cette couche ?")) {
+                map.removeLayer(externalLayers.get(id).layerGroup);
+                externalLayers.delete(id);
+                saveToStorage(); updateExternalLayersList();
+            }
+        }
+
+        function updateExternalLayersList() {
+            const list = document.getElementById('externalLayersList');
+            if (!externalLayers.size) return list.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">Aucune couche ajoutée.</p>';
+            list.innerHTML = '';
+            externalLayers.forEach((data, id) => {
+                const div = document.createElement('div');
+                div.className = `p-3 bg-white border ${data.visible ? 'border-indigo-100 shadow-sm' : 'border-slate-200 opacity-60'} rounded-xl transition-all`;
+                div.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <div class="w-4 h-4 rounded border shrink-0" style="background-color: ${data.style.color}"></div>
+                            <span class="text-xs font-bold text-slate-700 truncate">${data.name}</span>
+                        </div>
+                        <div class="flex gap-1 shrink-0 ml-2">
+                             <button onclick="toggleVisibility('${id}')" title="Masquer/Afficher" class="p-1 hover:bg-slate-100 rounded text-slate-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            </button>
+                            <button onclick="openSettingsModal('${id}')" title="Paramètres" class="p-1 hover:bg-indigo-50 text-slate-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                            </button>
+                            <button onclick="removeExternalLayer('${id}')" title="Supprimer" class="p-1 hover:text-red-500 text-slate-300">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function toggleZacGroup(zacName) {
+            const content = document.getElementById(`zac-group-${zacName}`);
+            const header = content.previousElementSibling;
+            content.classList.toggle('hidden');
+            header.classList.toggle('collapsed');
+        }
+
+        function updateFeatureList() {
+            const list = document.getElementById('featureList'); 
+            list.innerHTML = '';
+            if (featureData.size === 0) {
+                list.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">Aucune tâche enregistrée.</p>';
+                document.getElementById('objCount').innerText = 0;
+                return;
+            }
+            
+            const grouped = {};
+            featureData.forEach((d, id) => {
+                const zac = d.zac || "Sans ZAC";
+                if (!grouped[zac]) grouped[zac] = [];
+                grouped[zac].push({ id, ...d });
+            });
+            
+            Object.keys(grouped).sort().forEach(zac => {
+                const groupDiv = document.createElement('div');
+                const zacId = zac.replace(/\s+/g, '-');
+                
+                // Calcul des statistiques de la ZAC
+                const total = grouped[zac].length;
+                const doneCount = grouped[zac].filter(t => t.status === 'FAIT').length;
+                const progressWidth = total > 0 ? (doneCount / total) * 100 : 0;
+                
+                groupDiv.innerHTML = `
+                    <div onclick="toggleZacGroup('${zacId}')" class="flex flex-col p-2 bg-slate-100 rounded-lg cursor-pointer hover:bg-slate-200 transition-colors group mb-1">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <svg class="w-3 h-3 text-slate-500 rotate-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
+                                <span class="text-[11px] font-black text-slate-700 uppercase tracking-tighter">${zac}</span>
+                            </div>
+                            <span class="text-[10px] bg-white text-slate-500 px-1.5 py-0.5 rounded-md font-bold">${doneCount}/${total}</span>
+                        </div>
+                        <div class="w-full h-1 bg-slate-200 rounded-full mt-2 overflow-hidden">
+                            <div class="h-full bg-indigo-400 transition-all duration-500" style="width: ${progressWidth}%"></div>
+                        </div>
+                    </div>
+                    <div id="zac-group-${zacId}" class="zac-group-content space-y-2 pl-1 pt-1 mb-3"></div>
+                `;
+                
+                const container = groupDiv.querySelector(`#zac-group-${zacId}`);
+                
+                grouped[zac].forEach(itemData => {
+                    const item = document.createElement('div');
+                    const status = itemData.status || "A_TRAITER";
+                    const sConf = STATUS_CONFIG[status];
+                    
+                    // Design carte "Tâche"
+                    item.className = `group relative p-3 bg-white border-l-4 ${sConf.color} border-y border-r border-slate-200 rounded-xl cursor-pointer hover:shadow-md transition-all`;
+                    
+                    const noteText = itemData.note || "Tâche sans description...";
+                    const isLongNote = noteText.length > 80;
+                    const displayNote = isLongNote ? noteText.substring(0, 80) + '...' : noteText;
+                    
+                    item.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="text-[11px] font-bold text-slate-800 flex items-center gap-2">
+                                Tâche #${itemData.id.toString().slice(-3)}
+                            </div>
+                            <div class="flex gap-1 bg-white rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-2 z-10 border border-slate-100">
+                                <button onclick="event.stopPropagation(); editDrawingAttributes(${itemData.id})" title="Modifier" class="p-1.5 text-slate-400 hover:text-indigo-500 hover:bg-slate-50 rounded-l">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                </button>
+                                <button onclick="event.stopPropagation(); deleteDrawing(${itemData.id})" title="Supprimer" class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-r border-l border-slate-100">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="text-xs text-slate-600 mb-3 leading-snug whitespace-pre-wrap pr-8" title="${noteText.replace(/"/g, '&quot;')}">${displayNote}</div>
+                        
+                        <div class="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">
+                            <!-- Menu déroulant pour changement de statut rapide -->
+                            <select onclick="event.stopPropagation()" onchange="quickUpdateStatus(${itemData.id}, this.value)" class="status-select text-[10px] font-bold ${sConf.text} ${sConf.bg} border-none rounded py-1 pl-2 pr-6 outline-none cursor-pointer">
+                                <option value="A_TRAITER" ${status === 'A_TRAITER' ? 'selected' : ''}>🔴 À traiter</option>
+                                <option value="EN_COURS" ${status === 'EN_COURS' ? 'selected' : ''}>🟠 En cours</option>
+                                <option value="FAIT" ${status === 'FAIT' ? 'selected' : ''}>🟢 Fait</option>
+                                <option value="POUR_INFO" ${status === 'POUR_INFO' ? 'selected' : ''}>🔵 Pour info</option>
+                            </select>
+                            
+                            <div class="text-[9px] text-slate-400 uppercase font-bold flex items-center gap-1">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                ${itemData.type}
+                            </div>
+                        </div>
+                    `;
+                    
+                    item.onclick = () => {
+                        const l = drawnItems.getLayer(itemData.id);
+                        if(l.getBounds) map.fitBounds(l.getBounds(), { padding: [50, 50] }); 
+                        else map.setView(l.getLatLng(), 17);
+                        l.openPopup();
+                    };
+                    
+                    container.appendChild(item);
+                });
+                
+                list.appendChild(groupDiv);
+            });
+            document.getElementById('objCount').innerText = featureData.size;
+        }
+
+        function deleteDrawing(id) {
+            if (confirm("Supprimer cette tâche / ce dessin ?")) {
+                const numericId = Number(id);
+                const layer = drawnItems.getLayer(numericId);
+                if (layer) drawnItems.removeLayer(layer);
+                featureData.delete(numericId);
+                saveToStorage(); updateFeatureList();
+            }
+        }
+
+        function clearAllStorage() { if(confirm("Réinitialiser tout ? Vos couches et tâches seront perdues.")) { localStorage.clear(); location.reload(); } }
+
+        function exportGeoJSON() {
+            const collection = { type: "FeatureCollection", features: [] };
+            drawnItems.eachLayer(l => {
+                const json = l.toGeoJSON();
+                const data = featureData.get(L.stamp(l));
+                json.properties = data;
+                collection.features.push(json);
+            });
+            const blob = new Blob([JSON.stringify(collection, null, 2)], {type: "application/json"});
+            const a = document.createElement('a'); 
+            a.href = URL.createObjectURL(blob); 
+            a.download = `SigoW_Taches_${new Date().toISOString().slice(0,10)}.geojson`; 
+            a.click();
+        }
+    </script>
+</body>
 </html>
