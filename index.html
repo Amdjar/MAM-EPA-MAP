@@ -10,6 +10,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/shpjs/4.0.4/shp.min.js"></script>
+    <!-- Ajout de EXIFR pour lire les données GPS des photos -->
+    <script src="https://cdn.jsdelivr.net/npm/exifr/dist/full.umd.js"></script>
     
     <style>
         #map { height: 100%; width: 100%; z-index: 1; }
@@ -56,13 +58,17 @@
             padding: 8px !important;
         }
         
-        /* Styles statuts tâches */
         .status-select { 
             appearance: none; 
             background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); 
             background-repeat: no-repeat; 
             background-position: right 0.25rem center; 
             background-size: 1em; 
+        }
+
+        .custom-photo-marker {
+            background: none;
+            border: none;
         }
     </style>
 </head>
@@ -150,9 +156,10 @@
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Type d'import</label>
-                    <select id="importType" class="w-full text-sm px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" onchange="toggleLayerNameField()">
+                    <select id="importType" class="w-full text-sm px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" onchange="updateImportUI()">
                         <option value="SIG">Couche SIG (Lecture seule)</option>
                         <option value="TASKS">Sauvegarde de tâches (Modifiable)</option>
+                        <option value="PHOTO">Photos avec GPS (.jpg, .png)</option>
                     </select>
                 </div>
                 <div id="layerNameContainer">
@@ -160,7 +167,7 @@
                     <input type="text" id="importLayerName" class="w-full text-sm px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl" placeholder="Nom (ex: ZAC, Cadastre...)">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Fichier (.json, .geojson, .zip)</label>
+                    <label id="fileLabel" class="block text-xs font-bold text-slate-500 uppercase mb-1">Fichier (.json, .geojson, .zip)</label>
                     <input type="file" id="importFile" accept=".json,.geojson,.zip" class="w-full text-sm border p-2 rounded-xl bg-slate-50 cursor-pointer">
                 </div>
             </div>
@@ -174,12 +181,12 @@
     <!-- Navigation -->
     <nav class="shrink-0 bg-indigo-900 text-white px-6 py-4 flex justify-between items-center shadow-lg relative z-[1001]">
         <div class="flex items-center gap-4">
-            <h1 class="text-xl font-bold tracking-tight">SigoW <span class="text-indigo-300 font-light text-sm ml-2">| Gestion ZAC & Tâches</span></h1>
+            <h1 class="text-xl font-bold tracking-tight">SigoW <span class="text-indigo-300 font-light text-sm ml-2">| Gestion ZAC, Tâches & Photos</span></h1>
         </div>
         <div class="flex gap-3">
             <button onclick="openModal('layerImportModal')" class="bg-emerald-600 px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-500 transition-all flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"></path></svg>
-                Importer couche / tâches
+                Importer données
             </button>
             <button onclick="clearAllStorage()" class="bg-red-900/40 px-3 py-2 rounded-lg text-xs hover:bg-red-800 transition-colors">Réinitialiser</button>
         </div>
@@ -191,10 +198,8 @@
         </main>
 
         <aside id="sidebar" class="w-full bg-white border-l border-slate-200 shadow-xl z-[1000] p-4 order-1 lg:order-2 flex flex-col relative h-full shrink-0" style="width: 420px; min-width: 320px; max-width: 60vw;">
-            <!-- Poignée pour redimensionner la largeur du panneau -->
             <div id="sidebar-resizer" class="hidden lg:block absolute left-0 top-0 bottom-0 w-1.5 hover:bg-indigo-400 cursor-col-resize z-50 transition-colors -ml-[1px]"></div>
 
-            <!-- Section 1 : Couches -->
             <div id="section-layers-container" class="flex flex-col shrink-0 transition-all duration-300 overflow-hidden" style="flex-basis: 35%; min-height: 40px;">
                 <div class="flex justify-between items-center mb-2 cursor-pointer group shrink-0" onclick="toggleSidebarSection('layers-content', this)">
                     <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-indigo-500 transition-colors">Couches de données</h2>
@@ -207,15 +212,13 @@
                 </div>
             </div>
 
-            <!-- Poignée pour redimensionner la hauteur entre les 2 sections -->
             <div id="horizontal-resizer" class="h-1.5 bg-slate-100 hover:bg-indigo-400 cursor-row-resize my-3 shrink-0 rounded transition-colors hidden lg:block" title="Ajuster la hauteur"></div>
             <div class="h-px bg-slate-100 my-3 lg:hidden shrink-0"></div>
 
-            <!-- Section 2 : Tâches -->
             <div id="section-tasks-container" class="flex-grow flex flex-col overflow-hidden transition-all duration-300">
                 <div class="flex justify-between items-center mb-2 shrink-0 cursor-pointer group" onclick="toggleSidebarSection('tasks-content', this)">
                     <div class="flex items-center gap-2">
-                        <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-indigo-500 transition-colors">Liste des tâches</h2>
+                        <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-indigo-500 transition-colors">Tâches & Photos</h2>
                         <span id="objCount" class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
                     </div>
                     <svg class="w-4 h-4 text-slate-400 transition-transform rotate-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -239,7 +242,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 
     <script>
-        // Configuration statuts de tâches
         const STATUS_CONFIG = {
             "A_TRAITER": { label: "À traiter", color: "border-rose-400", bg: "bg-rose-50", text: "text-rose-700", icon: "🔴" },
             "EN_COURS":  { label: "En cours", color: "border-amber-400", bg: "bg-amber-50", text: "text-amber-700", icon: "🟠" },
@@ -247,19 +249,13 @@
             "POUR_INFO": { label: "Pour info", color: "border-blue-400", bg: "bg-blue-50", text: "text-blue-700", icon: "🔵" }
         };
 
-        // --- CONFIGURATION DES FONDS DE CARTE ---
         const baseLayers = {
             "Photo Aérienne (IGN)": L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&FORMAT=image/jpeg&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', { attribution: 'IGN' }),
-            "Photo Hybride (Google)": L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: 'Google' }),
-            "Photo Satellite (Esri)": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' }),
             "Plan IGN": L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', { attribution: 'IGN' }),
             "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: 'OSM' }),
-            "Plan Clair (Light)": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: 'CartoDB' }),
-            "Plan Sombre (Dark)": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: 'CartoDB' }),
-            "Topographie": L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: 'OpenTopoMap' })
+            "Plan Clair (Light)": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: 'CartoDB' })
         };
 
-        // --- INITIALISATION CARTE ---
         const valDEuropeCoords = [48.868, 2.784];
         const map = L.map('map', { 
             zoomControl: false,
@@ -272,7 +268,16 @@
         const featureData = new Map(); 
         const externalLayers = new Map(); 
         let currentTempLayer = null, currentTempType = null, activeLayerIdForSettings = null;
-        let editingFeatureId = null; // ID de l'élément en cours de modification
+        let editingFeatureId = null;
+
+        const photoIcon = L.divIcon({
+            html: `<div class="bg-indigo-600 text-white rounded-full p-1.5 shadow-lg border-2 border-white flex items-center justify-center">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                   </div>`,
+            className: 'custom-photo-marker',
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+        });
 
         const ZOOM_THRESHOLD = 15;
         map.on('zoomend', updateTooltipVisibility);
@@ -291,14 +296,11 @@
         });
         map.addControl(drawControl);
 
-        // --- PERSISTANCE ET INTERFACE ---
         window.onload = function() {
             closeModal('layerImportModal');
             loadFromStorage();
             updateTooltipVisibility();
             initUIResizers();
-            
-            // Redimensionnement automatique de la carte
             new ResizeObserver(() => { map.invalidateSize(); }).observe(document.getElementById('map'));
         };
 
@@ -326,26 +328,19 @@
             window.addEventListener('mousemove', (e) => {
                 if (isResizingSidebar) {
                     const newWidth = window.innerWidth - e.clientX;
-                    if (newWidth > 280 && newWidth < window.innerWidth * 0.7) {
-                        sidebar.style.width = `${newWidth}px`;
-                    }
+                    if (newWidth > 280 && newWidth < window.innerWidth * 0.7) sidebar.style.width = `${newWidth}px`;
                 }
-                
                 if (isResizingVertical) {
                     const sidebarRect = sidebar.getBoundingClientRect();
                     const newHeight = e.clientY - sidebarRect.top; 
-                    if (newHeight > 40 && newHeight < sidebarRect.height - 100) {
-                        layersContainer.style.flexBasis = `${newHeight}px`;
-                    }
+                    if (newHeight > 40 && newHeight < sidebarRect.height - 100) layersContainer.style.flexBasis = `${newHeight}px`;
                 }
             });
 
             window.addEventListener('mouseup', () => {
-                if(isResizingSidebar || isResizingVertical) {
-                    isResizingSidebar = false;
-                    isResizingVertical = false;
-                    document.body.style.cursor = 'default';
-                }
+                isResizingSidebar = false;
+                isResizingVertical = false;
+                document.body.style.cursor = 'default';
             });
         }
 
@@ -367,15 +362,19 @@
             }
         }
 
+        // Amélioration: Intégration de l'image dans le popup
         function formatPopupContent(data) {
             const statusConfig = STATUS_CONFIG[data.status || 'A_TRAITER'];
+            const imgHtml = data.image ? `<img src="${data.image}" class="w-full mt-2 rounded-lg border border-slate-200" style="max-height: 200px; object-fit: cover;" alt="Photo géo-référencée">` : '';
+            
             return `
-                <div class="text-sm">
+                <div class="text-sm" style="min-width: 200px;">
                     <b class="text-indigo-900">${data.zac}</b><br>
                     <span class="inline-block mt-1 mb-2 px-2 py-0.5 text-[10px] font-bold rounded ${statusConfig.bg} ${statusConfig.text}">
                         ${statusConfig.icon} ${statusConfig.label}
                     </span><br>
                     <div class="max-h-32 overflow-y-auto whitespace-pre-wrap text-xs text-slate-600">${data.note || 'Aucune description'}</div>
+                    ${imgHtml}
                 </div>
             `;
         }
@@ -384,7 +383,14 @@
             const savedDrawings = localStorage.getItem('sigow_drawings');
             if (savedDrawings) {
                 JSON.parse(savedDrawings).forEach(d => {
-                    const layer = L.GeoJSON.geometryToLayer(d.geometry);
+                    // Restauration correcte avec l'icône photo si nécessaire
+                    let layer;
+                    if (d.geometry.type === 'Point' && d.properties.type === 'Photo') {
+                        layer = L.marker([d.geometry.coordinates[1], d.geometry.coordinates[0]], { icon: photoIcon });
+                    } else {
+                        layer = L.GeoJSON.geometryToLayer(d.geometry);
+                    }
+                    
                     if (layer) {
                         const id = L.stamp(layer);
                         if (!d.properties.status) d.properties.status = 'A_TRAITER';
@@ -407,87 +413,176 @@
 
         function saveToStorage() {
             const drawings = [];
-            drawnItems.eachLayer(l => drawings.push({ geometry: l.toGeoJSON().geometry, properties: featureData.get(L.stamp(l)) }));
-            localStorage.setItem('sigow_drawings', JSON.stringify(drawings));
+            drawnItems.eachLayer(l => {
+                // Pour les markers Photo qui ne sont pas des features GeoJSON natifs parfaits
+                const geom = l.toGeoJSON ? l.toGeoJSON().geometry : { type: 'Point', coordinates: [l.getLatLng().lng, l.getLatLng().lat] };
+                drawings.push({ geometry: geom, properties: featureData.get(L.stamp(l)) });
+            });
+            
+            try { 
+                localStorage.setItem('sigow_drawings', JSON.stringify(drawings)); 
+            } catch (e) {
+                console.error(e);
+                alert("Erreur de sauvegarde: Espace de stockage saturé. Essayez de supprimer certaines photos ou couches.");
+            }
 
             const layers = [];
-            externalLayers.forEach(data => {
-                layers.push({ id: data.id, name: data.name, geojson: data.geojson, visible: data.visible, labelAttr: data.labelAttr, style: data.style });
-            });
+            externalLayers.forEach(data => layers.push({ id: data.id, name: data.name, geojson: data.geojson, visible: data.visible, labelAttr: data.labelAttr, style: data.style }));
             try { localStorage.setItem('sigow_external_layers', JSON.stringify(layers)); } catch (e) {}
         }
 
-        // --- GESTION MODALES ---
         function openModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function closeModal(id) { 
-            document.getElementById(id).style.display = 'none'; 
-            if (id === 'inputModal') editingFeatureId = null; 
-        }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; editingFeatureId = null; }
 
-        function toggleLayerNameField() {
+        function updateImportUI() {
             const type = document.getElementById('importType').value;
             const container = document.getElementById('layerNameContainer');
-            container.style.display = (type === 'TASKS') ? 'none' : 'block';
+            const fileInput = document.getElementById('importFile');
+            const label = document.getElementById('fileLabel');
+            
+            if (type === 'PHOTO') {
+                container.style.display = 'none';
+                label.innerText = "Sélectionnez des photos (.jpg, .jpeg, .png)";
+                fileInput.accept = "image/jpeg, image/png";
+                fileInput.multiple = true;
+            } else if (type === 'TASKS') {
+                container.style.display = 'none';
+                label.innerText = "Fichier de sauvegarde (.geojson, .json)";
+                fileInput.accept = ".json,.geojson";
+                fileInput.multiple = false;
+            } else {
+                container.style.display = 'block';
+                label.innerText = "Couche SIG (.zip, .geojson)";
+                fileInput.accept = ".json,.geojson,.zip";
+                fileInput.multiple = false;
+            }
         }
 
-        // --- IMPORTATION ---
+        // Helper: Redimensionner l'image pour ne pas saturer le cache
+        function resizeImage(file, maxSize) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } 
+                        else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+                        canvas.width = width; canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
         async function processImport() {
             const fileInput = document.getElementById('importFile');
-            if (!fileInput.files.length) return alert("Veuillez choisir un fichier.");
+            if (!fileInput.files.length) return alert("Veuillez choisir au moins un fichier.");
             
-            const file = fileInput.files[0];
             const importType = document.getElementById('importType').value;
-            const name = document.getElementById('importLayerName').value || file.name.split('.')[0];
-            const ext = file.name.split('.').pop().toLowerCase();
             const btn = document.getElementById('btnImportAction');
-
-            btn.disabled = true; 
-            btn.innerText = "Traitement...";
+            btn.disabled = true; btn.innerText = "Traitement...";
 
             try {
-                let geojson = (ext === 'zip') ? await shp(await file.arrayBuffer()) : JSON.parse(await file.text());
-                
-                if (importType === 'TASKS') {
-                    // Importation des objets en tant que tâches modifiables
-                    const features = geojson.features || (Array.isArray(geojson) ? geojson : []);
+                if (importType === 'PHOTO') {
                     let importedCount = 0;
+                    const files = fileInput.files;
                     
-                    features.forEach(f => {
-                        const layer = L.GeoJSON.geometryToLayer(f);
-                        if (layer) {
-                            const id = L.stamp(layer);
-                            const props = f.properties || {};
-                            
-                            // Attributions par défaut si non renseignées
-                            if (!props.status) props.status = 'A_TRAITER';
-                            if (!props.zac) props.zac = 'Hors ZAC';
-                            if (!props.type) props.type = f.geometry.type;
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        try {
+                            const exifData = await exifr.gps(file);
+                            if (exifData && exifData.latitude && exifData.longitude) {
+                                const base64Img = await resizeImage(file, 600); 
+                                
+                                const latLng = [exifData.latitude, exifData.longitude];
+                                const layer = L.marker(latLng, { icon: photoIcon });
+                                
+                                const geojsonPoint = { type: 'Feature', geometry: { type: 'Point', coordinates: [exifData.longitude, exifData.latitude] } };
+                                const zacName = findZacForGeometry(geojsonPoint) || "Hors ZAC";
 
-                            featureData.set(id, props);
-                            drawnItems.addLayer(layer);
-                            layer.bindPopup(formatPopupContent(props));
-                            importedCount++;
-                        }
-                    });
+                                const props = {
+                                    zac: zacName,
+                                    status: 'POUR_INFO',
+                                    type: 'Photo',
+                                    note: `Photo importée: ${file.name}`,
+                                    image: base64Img,
+                                    timestamp: Date.now()
+                                };
+
+                                const id = L.stamp(layer);
+                                featureData.set(id, props);
+                                drawnItems.addLayer(layer);
+                                layer.bindPopup(formatPopupContent(props));
+                                importedCount++;
+                            } else {
+                                console.warn(`Pas de coordonnées GPS pour ${file.name}`);
+                            }
+                        } catch(err) { console.error("Erreur lecture EXIF", err); }
+                    }
                     
-                    saveToStorage();
-                    updateFeatureList();
-                    alert(`${importedCount} tâche(s) importée(s) avec succès !`);
+                    if (importedCount > 0) {
+                        saveToStorage(); updateFeatureList();
+                        alert(`${importedCount} photo(s) importée(s) avec succès ! Les autres n'avaient pas de tag GPS.`);
+                    } else {
+                        alert("Aucune photo géo-référencée trouvée. Vérifiez que la localisation était activée lors de la prise de vue.");
+                    }
+
                 } else {
-                    // Importation en couche SIG passive
-                    const id = "layer_" + Date.now();
-                    addLayerToMap(geojson, name, id, true, null, { color: '#4f46e5', weight: 2, fillOpacity: 0.15 });
-                    saveToStorage();
-                }
+                    const file = fileInput.files[0];
+                    const name = document.getElementById('importLayerName').value || file.name.split('.')[0];
+                    const ext = file.name.split('.').pop().toLowerCase();
+                    let geojson = (ext === 'zip') ? await shp(await file.arrayBuffer()) : JSON.parse(await file.text());
+                    
+                    if (importType === 'TASKS') {
+                        const features = geojson.features || (Array.isArray(geojson) ? geojson : []);
+                        let importedCount = 0;
+                        features.forEach(f => {
+                            let layer;
+                            // Recréer le marker spécial pour les photos
+                            if (f.properties && f.properties.type === 'Photo' && f.geometry.type === 'Point') {
+                                layer = L.marker([f.geometry.coordinates[1], f.geometry.coordinates[0]], { icon: photoIcon });
+                            } else {
+                                layer = L.GeoJSON.geometryToLayer(f);
+                            }
+                            
+                            if (layer) {
+                                const id = L.stamp(layer);
+                                const props = f.properties || {};
+                                if (!props.status) props.status = 'A_TRAITER';
+                                if (!props.zac) props.zac = 'Hors ZAC';
+                                if (!props.type) props.type = f.geometry.type;
 
-                closeModal('layerImportModal');
-                document.getElementById('importLayerName').value = "";
-                fileInput.value = "";
+                                featureData.set(id, props);
+                                drawnItems.addLayer(layer);
+                                layer.bindPopup(formatPopupContent(props));
+                                importedCount++;
+                            }
+                        });
+                        saveToStorage(); updateFeatureList();
+                        alert(`${importedCount} tâche(s)/photo(s) importée(s) avec succès !`);
+                    } else {
+                        const id = "layer_" + Date.now();
+                        addLayerToMap(geojson, name, id, true, null, { color: '#4f46e5', weight: 2, fillOpacity: 0.15 });
+                        saveToStorage();
+                    }
+                }
             } catch (e) { 
                 alert("Erreur lors de l'import : " + e.message); 
             } finally {
-                btn.disabled = false; 
-                btn.innerText = "Charger et Mémoriser";
+                btn.disabled = false; btn.innerText = "Charger et Mémoriser";
+                closeModal('layerImportModal');
+                document.getElementById('importLayerName').value = "";
+                fileInput.value = "";
+                updateImportUI();
             }
         }
 
@@ -521,26 +616,17 @@
             document.getElementById('styleWeight').value = data.style.weight;
             const select = document.getElementById('labelAttributeSelect');
             select.innerHTML = '<option value="">-- Aucune étiquette --</option>';
-            data.availableKeys.forEach(k => {
-                select.innerHTML += `<option value="${k}" ${data.labelAttr === k ? 'selected' : ''}>${k}</option>`;
-            });
+            data.availableKeys.forEach(k => select.innerHTML += `<option value="${k}" ${data.labelAttr === k ? 'selected' : ''}>${k}</option>`);
             openModal('layerSettingsModal');
         }
 
         function applyLayerSettings() {
             const id = activeLayerIdForSettings;
             const data = externalLayers.get(id);
-            const newStyle = {
-                color: document.getElementById('styleColor').value,
-                weight: parseFloat(document.getElementById('styleWeight').value),
-                fillOpacity: data.style.fillOpacity
-            };
-            data.style = newStyle;
-            data.layerGroup.setStyle(newStyle);
+            const newStyle = { color: document.getElementById('styleColor').value, weight: parseFloat(document.getElementById('styleWeight').value), fillOpacity: data.style.fillOpacity };
+            data.style = newStyle; data.layerGroup.setStyle(newStyle);
             applyLabelsToLayer(id, document.getElementById('labelAttributeSelect').value);
-            saveToStorage();
-            closeModal('layerSettingsModal');
-            updateExternalLayersList();
+            saveToStorage(); closeModal('layerSettingsModal'); updateExternalLayersList();
         }
 
         function applyLabelsToLayer(id, attr) {
@@ -549,13 +635,7 @@
             data.layerGroup.eachLayer(l => {
                 l.unbindTooltip();
                 if (attr && l.feature && l.feature.properties[attr]) {
-                    l.bindTooltip(String(l.feature.properties[attr]), { 
-                        permanent: true, 
-                        direction: "center", 
-                        className: "leaflet-tooltip-custom",
-                        sticky: true,
-                        opacity: 0.9
-                    });
+                    l.bindTooltip(String(l.feature.properties[attr]), { permanent: true, direction: "center", className: "leaflet-tooltip-custom", sticky: true, opacity: 0.9 });
                 }
             });
         }
@@ -567,17 +647,13 @@
                     const features = layerData.geojson.features || (Array.isArray(layerData.geojson) ? layerData.geojson : []);
                     features.forEach(f => {
                         if (foundLibZac) return;
-                        try {
-                            const intersects = turf.booleanIntersects(geometry, f);
-                            if (intersects) foundLibZac = f.properties.lib_zac || f.properties.LIB_ZAC;
-                        } catch(e) {}
+                        try { if (turf.booleanIntersects(geometry, f)) foundLibZac = f.properties.lib_zac || f.properties.LIB_ZAC; } catch(e) {}
                     });
                 }
             });
             return foundLibZac;
         }
 
-        // Dessin manuel
         map.on(L.Draw.Event.CREATED, (e) => {
             currentTempLayer = e.layer; 
             currentTempType = e.layerType;
@@ -612,7 +688,7 @@
             if (!data) return;
 
             editingFeatureId = numericId;
-            document.getElementById('modalTitle').innerText = "Modifier la tâche";
+            document.getElementById('modalTitle').innerText = data.type === 'Photo' ? "Modifier les détails de la photo" : "Modifier la tâche";
             document.getElementById('modalZac').value = data.zac;
             document.getElementById('modalNote').value = data.note || "";
             document.getElementById('modalStatus').value = data.status || "A_TRAITER";
@@ -624,14 +700,9 @@
             const data = featureData.get(numericId);
             if (data) {
                 data.status = newStatus;
-                
                 const layer = drawnItems.getLayer(numericId);
-                if (layer) {
-                    layer.setPopupContent(formatPopupContent(data));
-                }
-                
-                saveToStorage();
-                updateFeatureList();
+                if (layer) layer.setPopupContent(formatPopupContent(data));
+                saveToStorage(); updateFeatureList();
             }
         }
 
@@ -642,33 +713,17 @@
 
             if (editingFeatureId !== null) {
                 const data = featureData.get(editingFeatureId);
-                if (data) {
-                    data.zac = zac;
-                    data.note = note;
-                    data.status = status;
-                }
-                
+                if (data) { data.zac = zac; data.note = note; data.status = status; }
                 const layer = drawnItems.getLayer(editingFeatureId);
-                if (layer) {
-                    layer.setPopupContent(formatPopupContent(data));
-                }
+                if (layer) layer.setPopupContent(formatPopupContent(data));
             } else {
                 const id = L.stamp(currentTempLayer);
-                const newData = { 
-                    zac: zac, 
-                    note: note, 
-                    status: status,
-                    type: currentTempType || "Dessin",
-                    timestamp: Date.now()
-                };
-                featureData.set(id, newData);
-                drawnItems.addLayer(currentTempLayer);
+                const newData = { zac: zac, note: note, status: status, type: currentTempType || "Dessin", timestamp: Date.now() };
+                featureData.set(id, newData); drawnItems.addLayer(currentTempLayer);
                 currentTempLayer.bindPopup(formatPopupContent(newData));
             }
             
-            saveToStorage(); 
-            updateFeatureList(); 
-            closeModal('inputModal');
+            saveToStorage(); updateFeatureList(); closeModal('inputModal');
         }
 
         function cancelCreation() { closeModal('inputModal'); }
@@ -702,15 +757,9 @@
                             <span class="text-xs font-bold text-slate-700 truncate">${data.name}</span>
                         </div>
                         <div class="flex gap-1 shrink-0 ml-2">
-                             <button onclick="toggleVisibility('${id}')" title="Masquer/Afficher" class="p-1 hover:bg-slate-100 rounded text-slate-400">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                            </button>
-                            <button onclick="openSettingsModal('${id}')" title="Paramètres" class="p-1 hover:bg-indigo-50 text-slate-400">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-                            </button>
-                            <button onclick="removeExternalLayer('${id}')" title="Supprimer" class="p-1 hover:text-red-500 text-slate-300">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                            </button>
+                             <button onclick="toggleVisibility('${id}')" class="p-1 hover:bg-slate-100 rounded text-slate-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
+                            <button onclick="openSettingsModal('${id}')" class="p-1 hover:bg-indigo-50 text-slate-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg></button>
+                            <button onclick="removeExternalLayer('${id}')" class="p-1 hover:text-red-500 text-slate-300"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                         </div>
                     </div>
                 `;
@@ -721,8 +770,7 @@
         function toggleZacGroup(zacName) {
             const content = document.getElementById(`zac-group-${zacName}`);
             const header = content.previousElementSibling;
-            content.classList.toggle('hidden');
-            header.classList.toggle('collapsed');
+            content.classList.toggle('hidden'); header.classList.toggle('collapsed');
         }
 
         function updateFeatureList() {
@@ -730,8 +778,7 @@
             list.innerHTML = '';
             if (featureData.size === 0) {
                 list.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">Aucune tâche enregistrée.</p>';
-                document.getElementById('objCount').innerText = 0;
-                return;
+                document.getElementById('objCount').innerText = 0; return;
             }
             
             const grouped = {};
@@ -744,7 +791,6 @@
             Object.keys(grouped).sort().forEach(zac => {
                 const groupDiv = document.createElement('div');
                 const zacId = zac.replace(/\s+/g, '-');
-                
                 const total = grouped[zac].length;
                 const doneCount = grouped[zac].filter(t => t.status === 'FAIT').length;
                 const progressWidth = total > 0 ? (doneCount / total) * 100 : 0;
@@ -758,9 +804,7 @@
                             </div>
                             <span class="text-[10px] bg-white text-slate-500 px-1.5 py-0.5 rounded-md font-bold">${doneCount}/${total}</span>
                         </div>
-                        <div class="w-full h-1 bg-slate-200 rounded-full mt-2 overflow-hidden">
-                            <div class="h-full bg-indigo-400 transition-all duration-500" style="width: ${progressWidth}%"></div>
-                        </div>
+                        <div class="w-full h-1 bg-slate-200 rounded-full mt-2 overflow-hidden"><div class="h-full bg-indigo-400 transition-all duration-500" style="width: ${progressWidth}%"></div></div>
                     </div>
                     <div id="zac-group-${zacId}" class="zac-group-content space-y-2 pl-1 pt-1 mb-3"></div>
                 `;
@@ -775,25 +819,28 @@
                     item.className = `group relative p-3 bg-white border-l-4 ${sConf.color} border-y border-r border-slate-200 rounded-xl cursor-pointer hover:shadow-md transition-all`;
                     
                     const noteText = itemData.note || "Tâche sans description...";
-                    const isLongNote = noteText.length > 80;
-                    const displayNote = isLongNote ? noteText.substring(0, 80) + '...' : noteText;
+                    const displayNote = noteText.length > 80 ? noteText.substring(0, 80) + '...' : noteText;
+                    
+                    let thumbHtml = '';
+                    if (itemData.image) {
+                        thumbHtml = `<img src="${itemData.image}" class="w-12 h-12 rounded object-cover border border-slate-200 shrink-0 ml-2" alt="miniature">`;
+                    }
                     
                     item.innerHTML = `
                         <div class="flex justify-between items-start mb-2">
                             <div class="text-[11px] font-bold text-slate-800 flex items-center gap-2">
-                                Tâche #${itemData.id.toString().slice(-3)}
+                                ${itemData.type === 'Photo' ? '📸 Photo' : '📝 Tâche'} #${itemData.id.toString().slice(-3)}
                             </div>
                             <div class="flex gap-1 bg-white rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-2 z-10 border border-slate-100">
-                                <button onclick="event.stopPropagation(); editDrawingAttributes(${itemData.id})" title="Modifier" class="p-1.5 text-slate-400 hover:text-indigo-500 hover:bg-slate-50 rounded-l">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                                </button>
-                                <button onclick="event.stopPropagation(); deleteDrawing(${itemData.id})" title="Supprimer" class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-r border-l border-slate-100">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                </button>
+                                <button onclick="event.stopPropagation(); editDrawingAttributes(${itemData.id})" class="p-1.5 text-slate-400 hover:text-indigo-500 hover:bg-slate-50 rounded-l"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                                <button onclick="event.stopPropagation(); deleteDrawing(${itemData.id})" class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-r border-l border-slate-100"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                             </div>
                         </div>
                         
-                        <div class="text-xs text-slate-600 mb-3 leading-snug whitespace-pre-wrap pr-8" title="${noteText.replace(/"/g, '&quot;')}">${displayNote}</div>
+                        <div class="flex justify-between items-start">
+                           <div class="text-xs text-slate-600 mb-3 leading-snug whitespace-pre-wrap flex-grow" title="${noteText.replace(/"/g, '&quot;')}">${displayNote}</div>
+                           ${thumbHtml}
+                        </div>
                         
                         <div class="flex items-center justify-between mt-auto pt-2 border-t border-slate-50">
                             <select onclick="event.stopPropagation()" onchange="quickUpdateStatus(${itemData.id}, this.value)" class="status-select text-[10px] font-bold ${sConf.text} ${sConf.bg} border-none rounded py-1 pl-2 pr-6 outline-none cursor-pointer">
@@ -827,7 +874,7 @@
         }
 
         function deleteDrawing(id) {
-            if (confirm("Supprimer cette tâche / ce dessin ?")) {
+            if (confirm("Supprimer cet élément ?")) {
                 const numericId = Number(id);
                 const layer = drawnItems.getLayer(numericId);
                 if (layer) drawnItems.removeLayer(layer);
@@ -836,20 +883,19 @@
             }
         }
 
-        function clearAllStorage() { if(confirm("Réinitialiser tout ? Vos couches et tâches seront perdues.")) { localStorage.clear(); location.reload(); } }
+        function clearAllStorage() { if(confirm("Réinitialiser tout ? Vos couches, tâches et photos seront perdues.")) { localStorage.clear(); location.reload(); } }
 
         function exportGeoJSON() {
             const collection = { type: "FeatureCollection", features: [] };
             drawnItems.eachLayer(l => {
-                const json = l.toGeoJSON();
+                const geom = l.toGeoJSON ? l.toGeoJSON().geometry : { type: 'Point', coordinates: [l.getLatLng().lng, l.getLatLng().lat] };
                 const data = featureData.get(L.stamp(l));
-                json.properties = data;
-                collection.features.push(json);
+                collection.features.push({ type: "Feature", geometry: geom, properties: data });
             });
             const blob = new Blob([JSON.stringify(collection, null, 2)], {type: "application/json"});
             const a = document.createElement('a'); 
             a.href = URL.createObjectURL(blob); 
-            a.download = `SigoW_Taches_${new Date().toISOString().slice(0,10)}.geojson`; 
+            a.download = `SigoW_Export_${new Date().toISOString().slice(0,10)}.geojson`; 
             a.click();
         }
     </script>
