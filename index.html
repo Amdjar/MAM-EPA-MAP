@@ -682,6 +682,21 @@
             openModal('inputModal');
         });
 
+        // NOUVEAUX ÉCOUTEURS D'ÉVÉNEMENTS POUR CORRIGER LE BUG DE SUPPRESSION
+        map.on(L.Draw.Event.DELETED, (e) => {
+            e.layers.eachLayer(layer => {
+                const id = L.stamp(layer);
+                featureData.delete(id); // Supprime l'attribut mémoire
+            });
+            saveToStorage(); // Enregistre la mise à jour sans les éléments supprimés
+            updateFeatureList(); // Met à jour l'interface utilisateur latérale
+        });
+
+        // Sécurité supplémentaire : Sauvegarder automatiquement si le dessin est modifié (déplacé, redimensionné...)
+        map.on(L.Draw.Event.EDITED, (e) => {
+            saveToStorage();
+        });
+
         function editDrawingAttributes(id) {
             const numericId = Number(id); 
             const data = featureData.get(numericId);
